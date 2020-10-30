@@ -1,0 +1,1014 @@
+#!/bin/bash
+
+#=================================================
+#	System Required: CentOS 6+/Debian 6+/Ubuntu 14.04+
+#	Description: Auto download viedo
+#	Version: 1.0.0
+#	Author: Toyo
+#	Blog: http://lemongrass.top
+#=================================================
+
+Version=1.0.0
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+ScriptPath=/data/samba/Chase-Viedo
+Configure_Folder=/usr/local/Chase
+
+
+Cache_Folder=${Configure_Folder}/cache
+Cache_ViedoList_Folder=${Cache_Folder}/Viedolist
+
+Info_file=${Configure_Folder}/info.json
+Config_file=${Configure_Folder}/config.json
+URL_file=${Configure_Folder}/url.list
+Viedolist_file=${Configure_Folder}/viedo.list
+Lostviedo_file=${Cache_Folder}/lostviedo.list
+NewViedolist_file=${Cache_Folder}/newviedolist_file.list
+
+
+
+
+
+
+
+RED='\033[0;31m'
+YELLOW0='\033[7;33m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+SKYBLUE='\033[0;36m'
+PLAIN='\033[0m'
+
+
+Line_YELLOW='\033[4;33m'
+
+B_SKYBLUE='\033[7;36m'
+
+#Debug
+
+DelayTime=10
+Clear(){
+	echo
+	clear
+}
+
+
+
+cancel() {
+	echo ""
+	echo " 中断操作...."
+	echo " 清除垃圾...."
+	echo " 完成"
+	exit
+}
+
+trap cancel SIGINT
+
+check_root(){
+	[[ $EUID != 0 ]] && echo -e "${RED} 请使用ROOT权限执行 ! ${PLAIN}" && exit 1
+}
+
+work_mode(){
+	
+	if [ -n "$*" ]; then
+		echo -e "${RED}  传递的参数：$* ${PLAIN}"
+	fi	
+}
+
+check_sys(){
+	if [[ -f /etc/redhat-release ]]; then
+		release="centos"
+	elif cat /etc/issue | grep -q -E -i "debian"; then
+		release="debian"
+	elif cat /etc/issue | grep -q -E -i "ubuntu"; then
+		release="ubuntu"
+	elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
+		release="centos"
+	elif cat /proc/version | grep -q -E -i "debian"; then
+		release="debian"
+	elif cat /proc/version | grep -q -E -i "ubuntu"; then
+		release="ubuntu"
+	elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
+		release="centos"
+    fi
+	system_bit=`uname -m`
+}
+
+
+
+
+# 主菜单
+menu_status(){
+
+	mkdir -p ${Configure_Folder}
+	mkdir -p ${Cache_Folder}
+
+
+	Clear 
+	check_dependency
+
+	echo -e "${YELLOW}Chase Viedo 视频更新下载管理脚本 Version: ${Version}${PLAIN}"
+	echo ""
+	echo -e "${YELLOW}  1. ${SKYBLUE}更新视频${PLAIN}"
+	echo -e "${YELLOW}  2. ${SKYBLUE}视频转码${PLAIN}"
+	echo -e "${YELLOW}  3. ${SKYBLUE}查看追剧列表${PLAIN}"
+	echo -e "${YELLOW}  4. ${SKYBLUE}管理追剧列表${PLAIN}"
+	echo -e "${YELLOW}  5. ${SKYBLUE}查看配置${PLAIN}"
+	echo -e "${YELLOW}  6. ${SKYBLUE}修改设置${PLAIN}"
+	echo -e "${YELLOW}  7. ${SKYBLUE}查看日志${PLAIN}"
+	echo -e "${YELLOW}  8. ${SKYBLUE}退出${YELLOW}"	
+	echo 
+
+	echo && read -e -p "请输入数字 [1-8]:" num
+
+	while [[ num -gt 8 || num -lt 1 ]]; do
+		#while [[ 1 ]]; do
+		Clear
+		echo -e "${YELLOW}Chase Viedo 视频更新下载管理脚本 Version: ${Version}${PLAIN}"
+		echo ""
+		echo -e "${YELLOW}  1. ${SKYBLUE}更新视频${PLAIN}"
+		echo -e "${YELLOW}  2. ${SKYBLUE}视频转码${PLAIN}"
+		echo -e "${YELLOW}  3. ${SKYBLUE}查看追剧列表${PLAIN}"
+		echo -e "${YELLOW}  4. ${SKYBLUE}管理追剧列表${PLAIN}"
+		echo -e "${YELLOW}  5. ${SKYBLUE}查看配置${PLAIN}"
+		echo -e "${YELLOW}  6. ${SKYBLUE}修改设置${PLAIN}"
+		echo -e "${YELLOW}  7. ${SKYBLUE}查看日志${PLAIN}"
+		echo -e "${YELLOW}  8. ${SKYBLUE}退出${YELLOW}"	
+		echo 		
+		echo -e "${RED}请输入正确的数字 [1-8]!${YELLOW}"
+		read -e -p "请输入数字 [1-8]:" num
+
+	done
+
+	case "$num" in
+		1) 	Update_Viedo 	
+			menu_status;;
+		2) 	Transcode_Viedo	
+			menu_status;;
+		3) 	View_Viedo_list	
+			menu_status;;
+		4) 	Set_Viedo_list	
+			menu_status;;
+		5) 	View_Setting		
+			menu_status;;
+		6) 	Setting_Menu 
+			menu_status;;		
+		7) 	View_Log	
+			menu_status;;	
+		8)	Clear 
+			exit;;			
+		*) 	echo -e "${RED}请输入正确的数字 [1-8]!" && sleep 1
+			menu_status;;
+	esac	
+}
+
+StayPage(){
+	echo -e "${YELLOW}任意键返回" && read back
+}
+
+#子菜单
+Update_Viedo(){
+	echo "Update_Viedo"
+}
+
+Transcode_Viedo(){
+	echo "Transcode_Viedo"
+}
+
+View_Viedo_list(){
+
+	Clear
+	echo -e "${YELLOW}当前视频追更列表为:${SKYBLUE}"
+	
+	sudo touch ${Viedolist_file} 
+
+	cat ${Viedolist_file} | sed 's/<\*<//g; s/>\*>//g'
+
+	echo -e "${YELLOW}"
+
+	echo -e "${YELLOW}1.联网验证追更列表有效性"
+	echo -e "${YELLOW}2.查看该系列详细剧集"		
+	echo -e "${YELLOW}3.返回上一级菜单"
+	echo -e "${YELLOW}"
+
+	read -e -p "请输入选项[1-3]:" result
+
+	while [[ ${result} != [123] ]]; do
+		
+		Clear
+		echo -e "${YELLOW}当前视频追更列表为:${SKYBLUE}"
+		
+		sudo touch ${Viedolist_file} 
+
+		cat ${Viedolist_file} | sed 's/<\*<//g; s/>\*>//g'
+
+		echo -e "${YELLOW}"
+
+		echo -e "${YELLOW}1.联网验证追更列表有效性"
+		echo -e "${YELLOW}2.查看该系列详细剧集"		
+		echo -e "${YELLOW}3.返回上一级菜单"
+		echo -e "${YELLOW}"		
+		read -e -p "请输入选项[1-3]:" result
+	done
+
+	case "$result" in
+	1) Creat_Viedo_list; 		StayPage; View_Viedo_list; break ;;
+	2) View_Detailed_Viedo;		StayPage; View_Viedo_list; break ;;
+	3) menu_status;;
+	*) echo -e "${RED}输入格式错误!${PLAIN}" && echo ;;
+	esac
+}
+
+Creat_Viedo_list(){
+
+	let "UrlNumber=0"
+	let "RealViedoNumber=0"
+	sudo touch ${Lostviedo_file}    && true > ${Lostviedo_file}
+	sudo touch ${NewViedolist_file} && true > ${NewViedolist_file}
+
+	echo -e "${YELLOW}正在解析链接验证有效性..."
+
+	# cat ${URL_file} | while read line
+	# do
+		linenumber=`awk 'END{print NR}' ${URL_file}`
+
+		let linenumber++
+
+	for (( count = 1; count < ${linenumber}; count++ )); do
+			#statements
+		
+		let UrlNumber++
+
+		realurl=`sed "${count}q;d" ${URL_file} | sed 's/##.*#!##//'`
+
+		output=`annie -i ${realurl} 2> /dev/null`
+
+		if [[ ${output} =~ "Title:     " ]]
+		then
+			#在线提取剧名  | 使用本地剧名
+			#dirname=`annie -i ${realurl} 2> /dev/null | grep Title | sed 's/Title:     //; s/ /-/g; s/-//; s/。//g; s/：.*//'`
+
+			dirname=`grep "${realurl}" ${URL_file} | sed 's/#!##.*//;s/#//g'`
+
+			let RealViedoNumber++
+
+			echo -e "${GREEN}第${UrlNumber}条链接解析成功: \c"
+
+			echo -e "${SKYBLUE}${dirname} "
+
+			echo "${RealViedoNumber}.<*<${dirname}>*>" >> ${NewViedolist_file}
+			#生成该系列剧名列表
+			mkdir -p ${Cache_ViedoList_Folder} && annie -i -p ${realurl} 2> /dev/null | grep Title |sed 's/Title:     //; s/ /-/g; s/-//; s/。//g' > ${Cache_ViedoList_Folder}/${dirname}.list			
+			
+			echo "${dirname}下载链接：${realurl}" >> ${Cache_ViedoList_Folder}/${dirname}.list
+
+		else			
+			echo -e "${RED}第${UrlNumber}条链接解析失败: ${realurl}"
+
+			lostviedoname=`sed "${count}q;d" ${URL_file} | sed 's/#!##.*//; s/##//'`
+
+			echo "第${UrlNumber}条链接失效-${lostviedoname}:${realurl}" >>  ${Lostviedo_file}
+
+			#lostname`sed "${count}q;d" ${URL_file} | sed 's/#!##.*//; s/##//'`
+		fi
+	done
+
+	cp ${NewViedolist_file} ${Viedolist_file}
+
+	echo 
+	echo -e "${YELLOW}已更新追更列表${SKYBLUE}"
+
+	cat ${NewViedolist_file} | sed 's/<\*<//g; s/>\*>//g'
+
+	lostnumber=`awk 'END{print NR}' ${Lostviedo_file}`
+
+	if [[ ! ${lostnumber} -eq 0 ]];then
+
+		echo -e "${RED}以下链接失效"
+		cat ${Lostviedo_file}
+	fi
+
+}
+View_Detailed_Viedo(){
+
+	linenumber=`awk 'END{print NR}' ${URL_file}`
+
+	echo -e "${YELLOW}请输入视频编号【1-${linenumber}】: \c"
+	read  number
+
+	if [[ number -gt ${linenumber} ]];then
+
+		echo -e "${RED}请输入正确的剧集编号【1-${linenumber}】!${YELLOW}"
+		View_Detailed_Viedo
+	else
+		viedoname=`sed "${number}q;d" ${Viedolist_file} | sed 's/.*\.//; s/<\*<//; s/>\*>//'`
+
+		echo -e "${YELLOW}以下是${name}的详细剧集: ${SKYBLUE}"
+
+		cat ${Cache_ViedoList_Folder}/${viedoname}.list
+		echo
+	fi
+}
+
+
+
+Set_Viedo_list(){
+	Clear 
+	echo -e "${YELLOW}当前追更视频列表为:${SKYBLUE}"
+	
+	sudo touch ${Viedolist_file} && cat ${Viedolist_file} | sed 's/<\*<//g; s/>\*>//g'
+
+	echo -e "${YELLOW}"
+
+	echo -e "${YELLOW}1.向列表中增加追更视频"
+	echo -e "${YELLOW}2.向列表中删除追更视频"
+	echo -e "${YELLOW}3.修改追更视频名称"
+	echo -e "${YELLOW}4.返回上一级菜单"
+	echo -e "${YELLOW}"
+
+	read -e -p "请输入选项[1-4]:" result
+
+	while [[ ${result} != [1234] ]]; do
+		Clear 
+		echo -e "${YELLOW}当前追更视频列表为:${SKYBLUE}"
+		
+		sudo touch ${Viedolist_file} && cat ${Viedolist_file} | sed 's/<\*<//g; s/>\*>//g'
+
+		echo -e "${YELLOW}"
+		echo -e "${YELLOW}1.向列表中增加追更视频"
+		echo -e "${YELLOW}2.向列表中删除追更视频"
+		echo -e "${YELLOW}3.修改追更视频名称"
+		echo -e "${YELLOW}4.返回上一级菜单"
+		echo -e "${YELLOW}"		
+		read -e -p "请输入选项[1-4]:" result
+	done
+
+	case "$result" in
+	1) echo -e "${YELLOW}正在向列表中增加追更视频"; Add_Viedo_list; 		StayPage; Set_Viedo_list; break ;;
+	2) echo -e "${YELLOW}正在向列表中删除追更视频"; Remove_Viedo_list; 	StayPage; Set_Viedo_list; break ;;
+	3) echo -e "${YELLOW}正在修改列表追更视频名称"; Rename_Viedo; 			StayPage; Set_Viedo_list; break ;;
+	4) menu_status;;
+	*) echo -e "${RED}输入格式错误!${PLAIN}" && echo ;;
+	esac
+}
+
+
+Add_Viedo_list(){
+
+	echo -e "${YELLOW}请输入视频链接: ${Line_YELLOW}\c"
+
+	read  links
+
+	linenumber=`awk 'END{print NR}' ${URL_file}`
+
+	let linenumber++
+	let checkflag=0
+
+	#去重
+	for (( count = 1; count < ${linenumber}; count++ )); do
+	
+		checkurl=`sed "${count}q;d" ${URL_file} | sed 's/##.*#!##//'`
+		if [[ ${checkurl} == ${links} ]];then
+			let checkflag=1
+		fi
+	done
+
+	if [[  ${checkflag} -eq 1 ]];then 
+		echo -e "${RED}此链接已添加!${PLAIN}"
+
+	else
+		echo -e "${YELLOW}正在解析链接...${PLAIN}"
+
+		output=`annie -i ${links} 2> /dev/null`
+
+		if [[ ${output} =~ "Title:     " ]];then
+
+		viedoname=`annie -i ${links} 2> /dev/null | grep Title | sed 's/Title:     //; s/ /-/g; s/-//; s/。//g; s/：.*//'`
+
+		echo -e "${YELLOW}视频解析成功: ${B_SKYBLUE}${viedoname}${PLAIN}"
+
+		echo -e "${YELLOW}是否使用 << ${viedoname} >> 作为名称创建文件夹?(n/y)"
+		read -e -p "(默认: y):" result
+		[[ -z ${result} ]] && result="y"
+		if [[ ${result} == [Yy] ]]; then
+			echo
+		else
+			echo
+			echo -e "${YELLOW}请输入新名称：\c" && read viedoname
+		fi
+
+		viedonumber=`awk 'END{print NR}' ${Viedolist_file}`
+		
+		let viedonumber++
+
+		echo "${viedonumber}.<*<${viedoname}>*>" >> ${Viedolist_file}
+
+		echo "##${viedoname}#!##${links}" >> ${URL_file}
+
+		echo -e "${YELLOW}生成分集列表...${SKYBLUE}"
+
+		mkdir -p ${Cache_ViedoList_Folder} && annie -i -p ${links} 2> /dev/null | grep Title |sed 's/Title:     //; s/ /-/g; s/-//; s/。//g' > ${Cache_ViedoList_Folder}/${viedoname}.list
+
+		echo "${viedoname}下载链接：${links}" >> ${Cache_ViedoList_Folder}/${viedoname}.list
+
+		cat ${Cache_ViedoList_Folder}/${viedoname}.list
+
+		echo 
+
+		else
+			echo -e "${RED}解析失败,请检查链接或者网络!" && echo 
+		fi
+		
+	fi
+}
+
+Remove_Viedo_list(){
+	let RemoveViedoNumber=0
+
+	while [[ 1 ]]; do
+		
+		linenumber=`awk 'END{print NR}' ${URL_file}`
+		
+		while [[ 1 ]]; do
+			echo -e "${YELLOW}请输入视频编号【1-${linenumber}】: ${Line_YELLOW}\c"
+			read  number
+
+			if [[ number -gt ${linenumber} || number -lt 1 ]];then
+
+				echo -e "${RED}请输入正确的剧集编号【1-${linenumber}】!${YELLOW}"
+			else
+				break
+			fi
+		done
+
+		removename=`sed "${number}q;d" ${Viedolist_file} | sed 's/.*\.//; s/<\*<//; s/>\*>//'`
+
+		echo -e "${YELLOW}是否确定将 <<${removename}>> 从追更列表移除?(n/y)"
+		
+		read -e -p "(默认: n):" result
+		[[ -z ${result} ]] && result="n"
+
+		if [[ ${result} == [Yy] ]]; then
+		
+		let RemoveViedoNumber++
+
+		linenumber=`grep -n "##${removename}#!##" ${URL_file} | sed 's/:.*//'`
+
+		sed -i "${linenumber}d" ${URL_file}
+		echo -e "${YELLOW}已经将 <<${removename}>> 从追更列表移除"
+
+		fi
+		echo
+
+		echo -e "${YELLOW}输入y继续删除，输入其他键退出" && read result
+		[[ -z ${result} ]] && result="n"
+		
+		if [[ ${result} == [Yy] ]]; then
+			echo	
+		else
+			if [[ ${RemoveViedoNumber} -eq 0 ]];then
+				break
+			else
+				echo -e "${YELLOW}你一共删除了${RemoveViedoNumber} 条记录，需要更新列表"
+
+				echo -e "${YELLOW}正在为您联网更新列表..."
+				Creat_Viedo_list
+				break
+			fi
+		fi
+	done
+}
+
+Rename_Viedo(){
+
+		
+	linenumber=`awk 'END{print NR}' ${Viedolist_file}`
+	
+	while [[ 1 ]]; do
+		echo -e "${YELLOW}请输入需要修改名字的视频编号【1-${linenumber}】: ${Line_YELLOW}\c"
+		read  number
+
+		if [[ number -gt ${linenumber} || number -lt 1 ]];then
+
+			echo -e "${RED}请输入正确的剧集编号【1-${linenumber}】!${YELLOW}"
+		else
+			break
+		fi
+	done
+
+
+	oldname=`sed "${number}q;d" ${Viedolist_file} | sed 's/.*\.//; s/<\*<//; s/>\*>//'`
+
+	echo -e "${YELLOW}请输入<<${oldname}>>的新名字：\c" && read newname
+
+	sed -i "s/<\*<${oldname}>\*>/<\*<${newname}>\*>/" ${Viedolist_file}
+
+	sed -i "s/##${oldname}#!##/##${newname}#!##/" ${URL_file}
+
+	mv  ${Cache_ViedoList_Folder}/${oldname}.list  ${Cache_ViedoList_Folder}/${newname}.list 
+
+	echo -e "${RED}文件夹名字尚未修改${YELLOW}"
+
+	echo -e "修改成功!"
+}
+
+
+
+
+View_Setting(){
+	echo "View_Setting"
+}
+
+Setting_Menu(){
+	Clear 
+	echo -e "${YELLOW}Chase Viedo 视频更新下载管理脚本 设置界面${PLAIN}"
+
+	echo ""
+	echo -e "${GREEN}  1. ${SKYBLUE}视频保存路径设置${PLAIN}"
+	echo -e "${GREEN}  2. ${SKYBLUE}视频自动更新使能${PLAIN}"
+	echo -e "${GREEN}  3. ${SKYBLUE}视频更新时间设置${PLAIN}"
+	echo -e "${GREEN}  4. ${SKYBLUE}视频自动转码使能${PLAIN}"
+	echo -e "${GREEN}  5. ${SKYBLUE}转码后源视频清除${PLAIN}"
+	echo -e "${GREEN}  6. ${SKYBLUE}指定视频转码线程${PLAIN}"
+	echo -e "${GREEN}  7. ${SKYBLUE}指定视频转码格式${PLAIN}"
+	echo -e "${GREEN}  8. ${SKYBLUE}返回上一级菜单${YELLOW}"	
+	echo 
+	echo && read -e -p "请输入数字 [1-8]：" num
+
+	while [[ num -gt 8 || num -lt 1 ]]; do
+		Clear 
+		echo -e "${YELLOW}Chase Viedo 视频更新下载管理脚本 设置界面${PLAIN}"
+
+		echo ""
+		echo -e "${GREEN}  1. ${SKYBLUE}视频保存路径设置${PLAIN}"
+		echo -e "${GREEN}  2. ${SKYBLUE}视频自动更新使能${PLAIN}"
+		echo -e "${GREEN}  3. ${SKYBLUE}视频更新时间设置${PLAIN}"
+		echo -e "${GREEN}  4. ${SKYBLUE}视频自动转码使能${PLAIN}"
+		echo -e "${GREEN}  5. ${SKYBLUE}转码后源视频清除${PLAIN}"
+		echo -e "${GREEN}  6. ${SKYBLUE}指定视频转码线程${PLAIN}"
+		echo -e "${GREEN}  7. ${SKYBLUE}指定视频转码格式${PLAIN}"
+		echo -e "${GREEN}  8. ${SKYBLUE}返回上一级菜单${YELLOW}"	
+		echo 	
+		echo -e "${RED}请输入正确的数字 [1-8]!${YELLOW}"
+		read -e -p "请输入数字 [1-8]:" num
+	done
+
+
+	#echo && read -e -p "请输入数字 [1-8]：" num
+	case "$num" in
+	1)	Set_ViedoSavePath
+		StayPage     
+	   	Setting_Menu;;
+	2)	Set_ViedoUpdateSwitch
+		StayPage     
+	   	Setting_Menu;;
+	3)	Set_ViedoUpdataTime
+		StayPage     
+	   	Setting_Menu;;
+	4)	Set_ViedoTranscodeSwitch
+		StayPage     
+	   	Setting_Menu;;
+	5)	Set_ViedoTranscodeClean
+		StayPage     
+	   	Setting_Menu;;
+	6)	Set_ViedoTranscodeThread
+		StayPage     
+	   	Setting_Menu;;
+	7)	Set_ViedoTranscodeFormat
+		StayPage     
+	   	Setting_Menu;;
+	8)	menu_status;;
+
+	*)	echo -e "${RED}请输入正确的数字 [1-8]";;
+	esac
+	
+	
+}
+
+
+
+View_Log(){
+	Remove_dependency
+}
+
+
+
+# 安装依赖
+Installation_dependency(){
+
+	[[ ! -e "/usr/bin/ffmpeg" ]] &&  echo -e "${YELLOW}正在下载 ffmpeg ...${PLAIN}" && Install_ffmpeg
+
+
+	if [ ! -n "$annie_version" ]; then
+
+	echo -e "${YELLOW}正在下载annie ...${PLAIN}" && Install_annie
+
+	fi
+
+	[[ ! -e "$ScriptPath" ]] && echo -e "${YELLOW}正在下载管理脚本...${PLAIN}" && Install_Script
+
+	echo -e "${YELLOW}全部安装完成!${PLAIN}"
+
+	#menu_status
+}
+Install_annie(){
+
+	true > /tmp/wget.log && wget -o /tmp/wget.log --spider http://lemongrass.top/mirrors/annie_0.9.8_Linux_64-bit.tar.gz
+
+	if [ ! -n "`grep -n "Remote file exists" /tmp/wget.log 2>/dev/nul`" ] ;then
+		wget https://github.com/iawia002/annie/releases/download/0.9.8/annie_0.9.8_Linux_64-bit.tar.gz > /dev/null 2>&1 && tar zxvf annie_0.9.8_Linux_64-bit.tar.gz > /dev/null 2>&1
+
+	else
+		wget http://lemongrass.top/mirrors/annie_0.9.8_Linux_64-bit.tar.gz > /dev/null 2>&1 && tar zxvf annie_0.9.8_Linux_64-bit.tar.gz > /dev/null 2>&1
+
+	fi
+
+	chmod 777 ./annie && rm -f /usr/bin/annie && mv ./annie /usr/bin
+	rm -rf ./annie_0.9.8_Linux_64-bit*
+
+	[[ -e "/usr/bin/annie" ]] && Check_annie && echo -e "${YELLOW}annie 安装成功! 版本为 ${annie_version} ${PLAIN}"
+	[[ ! -e "/usr/bin/annie" ]] && echo -e "${RED}annie安装失败,请检查网络!${PLAIN}" && exit 1
+}
+Install_ffmpeg(){
+
+	if [[ ${release} == "centos" ]]; then
+		Centos_yum_install
+	else
+		Debian_apt_install
+	fi
+	[[ -e "/usr/bin/ffmpeg" ]] && Check_ffmpeg && echo -e "${YELLOW}ffmpeg 安装成功! 版本为 ${ffmpeg_version} ${PLAIN}"
+	[[ ! -e "/usr/bin/ffmpeg" ]] && echo -e "${RED}依赖 ffmpeg 安装失败,可能是软件包源的问题，请检查 !${PLAIN}" && exit 1
+}
+
+Install_Script(){
+	echo "脚本安装待开发"
+}
+
+Centos_yum_install(){
+	yum update > /dev/null 2>&1
+	cat /etc/redhat-release |grep 7\..*|grep -i centos>/dev/null
+	if [[ $? = 0 ]]; then
+		yum install -y vim unzip tar ffmpeg git wget net-tools > /dev/null 2>&1
+	else
+		yum install -y vim unzip tar ffmpeg git wget  > /dev/null 2>&1
+	fi
+}
+
+Debian_apt_install(){
+	apt update > /dev/null 2>&1
+	cat /etc/issue |grep 9\..*>/dev/null
+	if [[ $? = 0 ]]; then
+		apt install -y vim unzip tar ffmpeg git wget net-tools > /dev/null 2>&1
+	else
+		apt install -y vim unzip tar ffmpeg git wget > /dev/null 2>&1
+	fi
+}
+
+Remove_dependency(){
+	echo -e "${YELLOW}此操作将会卸载此脚本及依赖,是否继续 (y/n) \c" && echo
+	read -e -p "(默认: n):" result
+	[[ -z ${result} ]] && result="n"
+	if [[ ${result} == [Yy] ]]; then
+
+		echo -e "${YELLOW}开始卸载...${PLAIN}"
+		echo -e "${YELLOW}卸载annie...${PLAIN}"
+		rm -f /usr/bin/annie
+
+		echo -e "${YELLOW}开始卸载ffmpeg...${PLAIN}"
+		if [[ ${release} == "centos" ]]; then
+			Centos_yum_removel
+		else
+			Debian_apt_remove
+		fi
+		echo -e "${YELLOW}取消自动任务...${PLAIN}"
+		#
+
+
+		echo -e "${YELLOW}删除管理脚本...${PLAIN}"
+		#rm -rf /usr/bin/lemon
+
+		echo -e "${YELLOW}是否删除配置文件? (y/n) \c" && echo
+		read -e -p "(默认: n):" result
+		[[ -z ${result} ]] && result="n"
+
+		if [[ ${result} == [Yy] ]]; then
+		echo -e "${YELLOW}删除配置文件...${PLAIN}"
+		rm -rf ${Configure_Folder}
+		fi
+
+		echo -e "${YELLOW}卸载完成${PLAIN}"
+		StayPage
+		exit		
+	else
+		echo -e "${YELLOW}取消卸载${PLAIN}" && exit 1
+	fi
+}
+
+Centos_yum_removel(){
+
+	yum remove -y ffmpeg > /dev/null 2>&1
+}
+
+Debian_apt_remove(){
+
+	apt remove -y ffmpeg > /dev/null 2>&1
+}
+
+
+check_dependency(){
+
+	let "system_flag=0"
+	if [ ! -n "$annie_version" ]; then
+		echo -e "${RED}  annie未安装${PLAIN}"
+		let "system_flag=1"
+	fi
+
+	if [ ! -n "$ffmpeg_version" ]; then
+		echo -e "${RED}  ffmpeg未安装${PLAIN}"
+		let "system_flag=1"
+	fi	
+
+	[[ ! -e "$ScriptPath" ]] && echo -e "${RED}  管理脚本未安装${PLAIN}" && let "system_flag=1"
+		
+	[[ ${release} != "debian" ]] && [[ ${release} != "ubuntu" ]] && [[ ${release} != "centos" ]] && echo -e "${RED} 本脚本不支持当前系统:${release}的自动安装,可自行安装ffmpeg后重试 !" && exit 1
+
+	if [[ ${system_flag} -eq 1 ]]; then
+		echo -e "${YELLOW}此系统没有安装所需的依赖,是否安装? (y/n) \c" && echo
+		read -e -p "(默认: n):" result
+		[[ -z ${result} ]] && result="n"
+		if [[ ${result} == [Yy] ]]; then
+
+			echo -e "开始安装${PLAIN}"
+			Installation_dependency
+		else
+			echo -e "取消安装${PLAIN}" && exit 1
+		fi
+	fi
+
+	Check_Config
+}
+
+
+#脚本配置
+Check_Config(){
+
+	if [[ ! -e "$Config_file" ]] ;then
+
+		echo -e "${RED} 没有检查到配置文件,是否重新生成配置文件?(y/n)${PLAIN}" && echo
+		read -e -p "(默认: n):" result
+		[[ -z ${result} ]] && result="n"
+		if [[ ${result} == [Yy] ]]; then
+
+			sudo touch ${Viedolist_file}
+
+			echo -e "${YELLOW}开始配置${PLAIN}"
+
+			Creat_Config
+		else
+			echo -e "${YELLOW}取消配置${PLAIN}" && exit 1
+		fi
+	fi
+}
+
+Creat_Config(){
+
+	mkdir -p ${Configure_Folder} && touch ${Config_file} && chmod 777 ${Config_file} || echo -e "${YELLOW}创建配置文件失败,请检查权限${PLAIN}"
+
+	echo ' "ViedoSavePath"        =  "~/"  '  > ${Config_file}
+	echo ' "ViedoUpdateSwitch"    =  "off" ' >> ${Config_file}
+	echo ' "ViedoUpdataTime"      =  "0"   ' >> ${Config_file}
+	echo ' "ViedoTranscodeSwitch" =  "off" ' >> ${Config_file}
+	echo ' "ViedoTranscodeClean"  =  "off" ' >> ${Config_file}
+	echo ' "ViedoTranscodeThread" =  "1"   ' >> ${Config_file}
+	echo ' "ViedoTranscodeFormat" =  "mp4" ' >> ${Config_file}
+
+	Set_ViedoSavePath
+
+}
+Write_Config(){
+
+	echo -e "\"ViedoSavePath\"        =  \"${ViedoSavePath}\"" 			 > ${Config_file}
+	echo -e "\"ViedoUpdateSwitch\"    =  \"${ViedoUpdateSwitch}\"" 		>> ${Config_file}
+	echo -e "\"ViedoUpdataTime\"      =  \"${ViedoUpdataTime}\"" 		>> ${Config_file}
+	echo -e "\"ViedoTranscodeSwitch\" =  \"${ViedoTranscodeSwitch}\"" 	>> ${Config_file}
+	echo -e "\"ViedoTranscodeClean\"  =  \"${ViedoTranscodeClean}\"" 	>> ${Config_file}
+	echo -e "\"ViedoTranscodeThread\" =  \"${ViedoTranscodeThread}\"" 	>> ${Config_file}
+	echo -e "\"ViedoTranscodeFormat\" =  \"${ViedoTranscodeFormat}\"" 	>> ${Config_file}
+}
+Set_ViedoSavePath(){
+
+	Get_AllConfig
+
+	echo -e "${YELLOW}当前视频保存地址为:${ViedoSavePath}"
+
+	echo -e "${YELLOW}请输入保存视频的绝对地址(输入q退出)"
+
+	read -e -p "PATH:" result
+
+	if [[ ${result} == [qQ] ]]; then Setting_Menu; fi
+
+	[[ -e "$result" ]] && echo -e "${SKYBLUE}地址有效:$result${PLAIN}" && ViedoSavePath=${result}
+	
+
+	[[ ! -e "$result" ]] && echo -e "${RED}地址无效,请重新输入\n${PLAIN}" && Set_ViedoSavePath
+
+
+	Write_Config
+}
+Set_ViedoUpdateSwitch(){
+
+	Get_AllConfig
+
+	if [[ ${ViedoUpdateSwitch} == 'on' ]]; then echo -e "${YELLOW}视频自动更新已开启${PLAIN}";
+	
+	else echo -e "${YELLOW}视频自动更新未开启${PLAIN}"; fi
+	
+	echo -e "${YELLOW}是否开启视频自动更新?(y/n)${PLAIN}" && echo
+	read -e -p "(默认: n):" result
+
+	[[ -z ${result} ]] && result="n"
+	if [[ ${result} == [Yy] ]]; then
+		ViedoUpdateSwitch='on'
+		echo -e "${YELLOW}已开启自动更新${PLAIN}"
+	else
+		ViedoUpdateSwitch='off'
+		echo -e "${YELLOW}已取消自动更新${PLAIN}" 
+	fi
+
+	Write_Config
+}
+
+Set_ViedoUpdataTime(){
+
+	Get_AllConfig
+
+	echo -e "${YELLOW}视频自动更新时间为:${PLAIN}";
+
+	echo -e "${YELLOW}请输入视频更新时间"
+
+	# read -e -p "PATH:" result
+
+	# [[ -e "$result" ]] && echo -e "${SKYBLUE}时间有效:$result${PLAIN}" && ViedoSavePath=${result}
+	
+	# [[ ! -e "$result" ]] && echo -e "${RED}地址无效,请重新输入\n${PLAIN}" && Set_ViedoSavePath
+
+	# Write_Config
+}
+
+Set_ViedoTranscodeSwitch(){
+	Get_AllConfig
+
+	if [[ ${ViedoTranscodeSwitch} == 'on' ]]; then echo -e "${YELLOW}视频自动转码已开启${PLAIN}";
+	
+	else echo -e "${YELLOW}视频自动转码未开启${PLAIN}"; fi
+
+	echo -e "${YELLOW}是否开启视频自动转码?(y/n)${PLAIN}" && echo -e "${YELLOW}转码后视频存放在原视频路径${PLAIN}"
+	read -e -p "(默认: n):" result
+	[[ -z ${result} ]] && result="n"
+	if [[ ${result} == [Yy] ]]; then
+		ViedoTranscodeSwitch='on'
+		echo -e "${YELLOW}已开启自动转码${PLAIN}"
+	else
+		ViedoTranscodeSwitch='off'
+		echo -e "${YELLOW}已取消自动转码${PLAIN}" 
+	fi
+	Write_Config
+}
+
+Set_ViedoTranscodeClean(){
+	Get_AllConfig
+
+	if [[ ${ViedoTranscodeClean} == 'on' ]]; then echo -e "${YELLOW}当前状态:视频转码后自动删除视频${PLAIN}";
+	
+	else echo -e "${YELLOW}当前状态:视频转码后不会删除视频${PLAIN}"; fi
+
+	echo -e "${YELLOW}视频转码消耗时间比较长,转码进行过程中断电,关机等意外情况可能会导致转码中断,生成不完整的转码文件"
+	echo -e "${YELLOW}该脚本会对转码前后的视频文件配合日志文件进行比对分析,纠正可能存在转码出错的文件,验证后删除原文件"
+	echo -e "${YELLOW}开启此项功能后,系统重启或脚本意外中断后短时间内不要随意手动清除原视频及日志,否则有丢失文件的风险!"
+	echo 
+	echo -e "${YELLOW}转码完成后是否删除原视频?(y/n)${PLAIN}" 
+	read -e -p "(默认: n):" result
+	[[ -z ${result} ]] && result="n"
+	if [[ ${result} == [Yy] ]]; then
+		ViedoTranscodeClean='on'
+		echo -e "${YELLOW}转码完成后将删除原视频${PLAIN}"
+	else
+		ViedoTranscodeClean='off'
+		echo -e "${YELLOW}转码完成后不会删除原视频${PLAIN}" 
+	fi
+	Write_Config
+}
+
+Set_ViedoTranscodeThread(){
+
+	Get_AllConfig
+	echo -e "${YELLOW}视频转码能支持的最大线程与CPU核心有关${PLAIN}";
+	echo -e "${YELLOW}当前视频转码线程为:${ViedoTranscodeThread}";
+
+	read -e -p "请输入转码线程:" result
+	[[ -e "$result" ]] && echo -e "${SKYBLUE}输入线程为:$result${PLAIN}" && ViedoTranscodeThread=${result}
+
+	Write_Config
+}
+
+Set_ViedoTranscodeFormat(){
+
+	Get_AllConfig
+
+	while [[ 1 ]]; do
+
+		echo -e "${YELLOW}当前视频转码目标格式为:${ViedoTranscodeFormat}${PLAIN}";
+		echo -e "${YELLOW}目前支持的视频转码格式为:mp4,flv,mov,m4a,3gp,avi,f4v";
+		read -e -p "请输入转码格式:" result
+
+		case "$result" in
+		"mp4") break ;;
+		"flv") break ;;
+		"mov") break ;;
+		"m4a") break ;;
+		"3gp") break ;;
+		"avi") break ;;
+		"f4v") break ;;
+		*) echo -e "${RED}输入格式错误!${PLAIN}" && echo ;;
+		esac
+
+	done
+
+	echo -e "${SKYBLUE}输入目标格式为:$result${PLAIN}" && ViedoTranscodeFormat=${result}
+
+	Write_Config
+}
+
+
+
+
+#获取配置
+Get_AllConfig(){
+	Get_ViedoSavePath
+	Get_ViedoUpdateSwitch
+	Get_ViedoUpdataTime
+	Get_ViedoTranscodeSwitch
+	Get_ViedoTranscodeClean
+	Get_ViedoTranscodeThread
+	Get_ViedoTranscodeFormat
+}
+
+Get_ViedoSavePath(){
+	ViedoSavePath=`grep "ViedoSavePath" ${Config_file} | sed 's/"ViedoSavePath"//; s/=//;s/ //g; s/"//g'`
+}
+Get_ViedoUpdateSwitch(){
+	ViedoUpdateSwitch=`grep "ViedoUpdateSwitch" ${Config_file} | sed 's/"ViedoUpdateSwitch"//; s/=//;s/ //g; s/"//g'`
+}
+Get_ViedoUpdataTime(){
+	ViedoUpdataTime=`grep "ViedoUpdataTime" ${Config_file} | sed 's/"ViedoUpdataTime"//; s/=//;s/ //g; s/"//g'`
+}
+Get_ViedoTranscodeSwitch(){
+	ViedoTranscodeSwitch=`grep "ViedoTranscodeSwitch" ${Config_file} | sed 's/"ViedoTranscodeSwitch"//; s/=//;s/ //g; s/"//g'`
+}
+Get_ViedoTranscodeClean(){
+	ViedoTranscodeClean=`grep "ViedoTranscodeClean" ${Config_file} | sed 's/"ViedoTranscodeClean"//; s/=//;s/ //g; s/"//g'`
+}
+Get_ViedoTranscodeThread(){
+	ViedoTranscodeThread=`grep "ViedoTranscodeThread" ${Config_file} | sed 's/"ViedoTranscodeThread"//; s/=//;s/ //g; s/"//g'`
+}
+Get_ViedoTranscodeFormat(){
+	ViedoTranscodeFormat=`grep "ViedoTranscodeFormat" ${Config_file} | sed 's/"ViedoTranscodeFormat"//; s/=//;s/ //g; s/"//g'`
+}
+
+
+
+#检测依赖项版本
+Check_Dependency_Version(){
+	Check_annie
+	Check_ffmpeg
+	Check_git
+	Check_apt
+	mkdir -p ${Configure_Folder}  && touch ${Info_file} && chmod 777 ${Info_file}
+	echo -e "  \"release\"        :  \"${release}\" 		" 	 > ${Info_file}
+	echo -e "  \"annie_version\"  :  \"${annie_version}\" 	"	>> ${Info_file}
+	echo -e "  \"ffmpeg_version\" :  \"${ffmpeg_version}\" 	"	>> ${Info_file}
+	echo -e "  \"git_version\"    :  \"${git_version}\" 	"	>> ${Info_file}
+	echo -e "  \"apt_version\"    :  \"${apt_version}\"		"	>> ${Info_file}
+}
+Check_annie(){
+	annie_version=`annie -v  2>/dev/null | grep version | sed 's/annie: version //; s/,.*//'`
+}
+Check_ffmpeg(){
+	ffmpeg_version=`ffmpeg -version  2>/dev/null | grep "ffmpeg version" | sed 's/ffmpeg version //; s/Copyright.*//'`
+}
+Check_git(){
+	git_version=`git --version  2>/dev/null | sed 's/git version//; s/ //g'`
+}
+Check_apt(){
+	apt_version=`apt -v  2>/dev/null |sed 's/apt //'`
+}
+
+
+
+#Start
+check_root
+check_sys
+
+Check_Dependency_Version
+
+menu_status
