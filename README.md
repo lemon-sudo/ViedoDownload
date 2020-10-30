@@ -4,7 +4,7 @@
 ViedoDownload
 
 #### 软件架构
-软件架构说明
+支持Ubuntu16.04/18.04/20.04,Centos
 
 
 #### 安装教程
